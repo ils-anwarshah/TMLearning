@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { StoryPanel } from './components/StoryPanel';
 import { AgentPanel } from './components/AgentPanel';
 import {
@@ -34,6 +34,11 @@ function getOrCreateThreadId(): string {
 export default function App() {
   const [userId]   = useState(getOrCreateUserId);
   const [threadId] = useState(getOrCreateThreadId);
+  const [chatWidth, setChatWidth]   = useState(380);
+  const [isResizing, setIsResizing] = useState(false);
+  const isDragging = useRef(false);
+  const startX     = useRef(0);
+  const startWidth = useRef(0);
 
   const [stories, setStories] = useState<Story[]>([]);
   const [storiesLoading, setStoriesLoading] = useState(true);
@@ -53,6 +58,35 @@ export default function App() {
   }, [userId]);
 
   useEffect(() => { fetchStories(); }, [fetchStories]);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      const delta = startX.current - e.clientX;
+      const clamped = Math.min(Math.max(startWidth.current + delta, 240), 800);
+      setChatWidth(clamped);
+    };
+    const onMouseUp = () => {
+      if (isDragging.current) {
+        isDragging.current = false;
+        setIsResizing(false);
+      }
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    isDragging.current = true;
+    startX.current     = e.clientX;
+    startWidth.current = chatWidth;
+    setIsResizing(true);
+    e.preventDefault();
+  };
 
   const handleStatusChange = async (storyId: string, status: StoryStatus) => {
     try {
@@ -121,7 +155,7 @@ export default function App() {
       </header>
 
       {/* Main split layout */}
-      <div className="app-body">
+      <div className={`app-body${isResizing ? ' app-body--resizing' : ''}`}>
         {/* Left — story board */}
         <div className="panel-left">
           {fetchError && (
@@ -149,10 +183,12 @@ export default function App() {
           />
         </div>
 
-        {/* Divider */}
-        <div className="panel-divider" />
+        {/* Resize handle */}
+        <div className="panel-resize-handle" onMouseDown={handleResizeMouseDown}>
+          <div className="resize-grip" />
+        </div>
         {/* Right — AI assistant */}
-        <div className="panel-right">
+        <div className="panel-right" style={{ width: chatWidth }}>
           <AgentPanel
             userId={userId}
             threadId={threadId}

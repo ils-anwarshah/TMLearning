@@ -93,7 +93,7 @@
 }
 
 .panel-left {
-  width: 40%;
+  flex: 1;
   min-width: 300px;
   display: flex;
   flex-direction: column;
@@ -101,10 +101,43 @@
   position: relative;
 }
 
-.panel-divider {
-  width: 1px;
-  background: rgba(109, 40, 217, 0.2);
+/* Drag-to-resize handle between panels */
+.panel-resize-handle {
+  width: 8px;
   flex-shrink: 0;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background 0.15s;
+  position: relative;
+}
+.panel-resize-handle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(109, 40, 217, 0.2);
+  width: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.panel-resize-handle:hover,
+.panel-resize-handle:active {
+  background: rgba(109, 40, 217, 0.12);
+}
+.panel-resize-handle:hover .resize-grip,
+.panel-resize-handle:active .resize-grip {
+  opacity: 1;
+}
+.resize-grip {
+  width: 4px;
+  height: 36px;
+  border-radius: 99px;
+  background: rgba(109, 40, 217, 0.6);
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 1;
 }
 
 .panel-chat {
@@ -116,11 +149,21 @@
 }
 
 .panel-right {
-  flex: 1;
-  min-width: 0;
+  flex-shrink: 0;
+  min-width: 240px;
+  max-width: 800px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Disable text selection while dragging the resize handle */
+.app-body--resizing {
+  user-select: none;
+  cursor: col-resize;
+}
+.app-body--resizing * {
+  cursor: col-resize !important;
 }
 
 /* -----------------------------------------------------------------------
