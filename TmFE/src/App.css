@@ -1,12 +1,166 @@
-.chat-app {
+/* -----------------------------------------------------------------------
+   Root layout
+----------------------------------------------------------------------- */
+.app-root {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  max-width: 800px;
-  margin: 0 auto;
-  background: #fff;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  background: #0f0e1a;
 }
+
+/* -----------------------------------------------------------------------
+   App header
+----------------------------------------------------------------------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 54px;
+  background: linear-gradient(90deg, #1a1333 0%, #1e1b4b 60%, #0f172a 100%);
+  border-bottom: 1px solid rgba(109, 40, 217, 0.3);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-logo {
+  font-size: 20px;
+  color: #a78bfa;
+  filter: drop-shadow(0 0 8px #7c3aed88);
+}
+
+.app-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: #f8fafc;
+  letter-spacing: -0.3px;
+}
+
+.app-name-accent {
+  color: #a78bfa;
+}
+
+.app-powered {
+  font-size: 11px;
+  color: #64748b;
+  padding-left: 4px;
+  border-left: 1px solid #334155;
+  margin-left: 4px;
+}
+
+.app-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(109, 40, 217, 0.15);
+  border: 1px solid rgba(109, 40, 217, 0.3);
+  border-radius: 99px;
+  font-size: 11px;
+  color: #c4b5fd;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.user-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade80;
+}
+
+/* -----------------------------------------------------------------------
+   Body — two-column split
+----------------------------------------------------------------------- */
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.panel-left {
+  width: 40%;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.panel-divider {
+  width: 1px;
+  background: rgba(109, 40, 217, 0.2);
+  flex-shrink: 0;
+}
+
+.panel-chat {
+  width: 280px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* -----------------------------------------------------------------------
+   Error banner
+----------------------------------------------------------------------- */
+.fetch-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 10px 20px;
+  font-size: 12px;
+  flex-shrink: 0;
+  line-height: 1.6;
+}
+
+.fetch-error-setup {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fcd34d;
+  border-bottom-color: rgba(245, 158, 11, 0.25);
+}
+
+.fetch-error code {
+  background: rgba(0,0,0,0.25);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.retry-link {
+  background: none;
+  border: none;
+  color: #fca5a5;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+.retry-link:hover { color: #fff; }
+
 
 .chat-header {
   padding: 16px 24px;

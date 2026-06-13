@@ -1,107 +1,167 @@
-import { useState, useRef, useEffect } from "react";
-import { ChatMessage } from "./components/ChatMessage";
-import { ChatInput } from "./components/ChatInput";
-import { streamMessage, type StreamStatus } from "./services/api";
-import "./App.css";
+import { useState, useEffect, useCallback } from 'react';
+import { StoryPanel } from './components/StoryPanel';
+import { AgentPanel } from './components/AgentPanel';
+import {
+  listStories,
+  approveStory,
+  updateStoryStatus,
+  deleteStory,
+  updateSubtaskStatus,
+} from './services/api';
+import type { Story, StoryStatus } from './types/todo';
+import './App.css';
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
+/** Generate or retrieve a persistent user id stored in localStorage. */
+function getOrCreateUserId(): string {
+  let id = localStorage.getItem('tm-user-id');
+  if (!id) {
+    id = 'user-' + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem('tm-user-id', id);
+  }
+  return id;
 }
 
-/** Map backend status keys to user-friendly labels. */
-const STATUS_LABELS: Record<StreamStatus, string> = {
-  thinking: "Thinking...",
-  web_searching: "Searching the web...",
-  generating: "Generating response...",
-};
+/** Generate or retrieve a persistent agent thread id stored in localStorage. */
+function getOrCreateThreadId(): string {
+  let id = localStorage.getItem('tm-thread-id');
+  if (!id) {
+    id = 'thread-' + Math.random().toString(36).slice(2, 18);
+    localStorage.setItem('tm-thread-id', id);
+  }
+  return id;
+}
 
-function App() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<StreamStatus | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+export default function App() {
+  const [userId]   = useState(getOrCreateUserId);
+  const [threadId] = useState(getOrCreateThreadId);
 
-  // Auto-scroll to bottom when messages or status change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, status]);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [storiesLoading, setStoriesLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const handleSend = async (message: string) => {
-    const userMessage: Message = { role: "user", content: message };
-    setMessages((prev) => [...prev, userMessage]);
-    setLoading(true);
-    setStatus("thinking");
+  const fetchStories = useCallback(async () => {
+    try {
+      setFetchError(null);
+      // Fetch both approved and drafts so drafts appear in the Drafts tab
+      const data = await listStories(userId, true);
+      setStories(data);
+    } catch (err) {
+      setFetchError((err as Error).message);
+    } finally {
+      setStoriesLoading(false);
+    }
+  }, [userId]);
 
-    let assistantAdded = false;
+  useEffect(() => { fetchStories(); }, [fetchStories]);
 
-    await streamMessage(
-      message,
-      (newStatus) => {
-        setStatus(newStatus);
-      },
-      (chunk) => {
-        if (!assistantAdded) {
-          // Add the assistant message on first content chunk
-          assistantAdded = true;
-          setStatus(null);
-          setMessages((prev) => [...prev, { role: "assistant", content: chunk }]);
-        } else {
-          // Append subsequent chunks to the last message
-          setMessages((prev) => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            updated[updated.length - 1] = { ...last, content: last.content + chunk };
-            return updated;
-          });
-        }
-      },
-      () => {
-        setLoading(false);
-        setStatus(null);
-      },
-      (error) => {
-        setStatus(null);
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: `Error: ${error}` },
-        ]);
-        setLoading(false);
-      }
-    );
+  const handleStatusChange = async (storyId: string, status: StoryStatus) => {
+    try {
+      const updated = await updateStoryStatus(storyId, status);
+      setStories(prev => prev.map(s => s.id === storyId ? updated : s));
+    } catch (err) {
+      console.error('Status update failed:', err);
+    }
+  };
+
+  const handleApprove = async (storyId: string) => {
+    try {
+      const updated = await approveStory(storyId, true);
+      setStories(prev => prev.map(s => s.id === storyId ? updated : s));
+    } catch (err) {
+      console.error('Approve failed:', err);
+    }
+  };
+
+  const handleReject = async (storyId: string) => {
+    try {
+      await approveStory(storyId, false);
+      setStories(prev => prev.filter(s => s.id !== storyId));
+    } catch (err) {
+      console.error('Reject failed:', err);
+    }
+  };
+
+  const handleDelete = async (storyId: string) => {
+    try {
+      await deleteStory(storyId);
+      setStories(prev => prev.filter(s => s.id !== storyId));
+    } catch (err) {
+      console.error('Delete failed:', err);
+    }
+  };
+
+  const handleSubtaskToggle = async (
+    storyId: string,
+    subtaskId: string,
+    status: StoryStatus
+  ) => {
+    try {
+      const updated = await updateSubtaskStatus(storyId, subtaskId, status);
+      setStories(prev => prev.map(s => s.id === storyId ? updated : s));
+    } catch (err) {
+      console.error('Subtask toggle failed:', err);
+    }
   };
 
   return (
-    <div className="chat-app">
-      <header className="chat-header">
-        <h1>TMLearning Chat</h1>
-        <p>Powered by Gemini AI</p>
+    <div className="app-root">
+      {/* App-wide header */}
+      <header className="app-header">
+        <div className="app-header-left">
+          <span className="app-logo">✦</span>
+          <span className="app-name">TM<span className="app-name-accent">Todo</span></span>
+          <span className="app-powered">AI-powered stories</span>
+        </div>
+        <div className="app-header-right">
+          <span className="user-badge">
+            <span className="user-dot" />
+            {userId}
+          </span>
+        </div>
       </header>
 
-      <div className="chat-messages">
-        {messages.length === 0 && !loading && (
-          <div className="chat-empty">
-            <p>Send a message to start chatting with Gemini AI</p>
-          </div>
-        )}
-        {messages.map((msg, i) => (
-          <ChatMessage key={i} role={msg.role} content={msg.content} />
-        ))}
-        {loading && status && (
-          <div className="chat-message assistant">
-            <div className="message-label">Gemini AI</div>
-            <div className="status-indicator">
-              <span className="status-dot" />
-              <span className="status-text">{STATUS_LABELS[status]}</span>
+      {/* Main split layout */}
+      <div className="app-body">
+        {/* Left — story board */}
+        <div className="panel-left">
+          {fetchError && (
+            <div className={`fetch-error ${fetchError.includes('serviceAccountKey') || fetchError.includes('service account') ? 'fetch-error-setup' : ''}`}>
+              {fetchError.includes('serviceAccountKey') || fetchError.includes('service account') ? (
+                <>
+                  🔑 <strong>Firebase not configured.</strong> Download your service account key from{' '}
+                  <em>Firebase Console → Project Settings → Service accounts → Generate new private key</em>{' '}
+                  and save it as <code>TmBE/serviceAccountKey.json</code>.{' '}
+                  <button onClick={fetchStories} className="retry-link">Retry</button>
+                </>
+              ) : (
+                <>⚠️ {fetchError} — <button onClick={fetchStories} className="retry-link">Retry</button></>
+              )}
             </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+          )}
+          <StoryPanel
+            stories={stories}
+            loading={storiesLoading}
+            onStatusChange={handleStatusChange}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onDelete={handleDelete}
+            onSubtaskToggle={handleSubtaskToggle}
+          />
+        </div>
 
-      <ChatInput onSend={handleSend} disabled={loading} />
+        {/* Divider */}
+        <div className="panel-divider" />
+        {/* Right — AI assistant */}
+        <div className="panel-right">
+          <AgentPanel
+            userId={userId}
+            threadId={threadId}
+            onRefresh={fetchStories}
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
-export default App
+

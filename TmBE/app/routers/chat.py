@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.schemas.chat import ChatRequest, ChatResponse
-from app.services.gemini_service import get_gemini_response, stream_gemini_response
+from app.services.groq_service import get_groq_response, stream_groq_response
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 @router.post("/", response_model=ChatResponse)
 async def send_message(request: ChatRequest):
     """
-    Send a message and get a response from Gemini AI.
+    Send a message and get a response from Groq AI.
 
     Args:
         request: ChatRequest containing the user's message.
@@ -29,7 +29,7 @@ async def send_message(request: ChatRequest):
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
     try:
-        response_text = get_gemini_response(request.message)
+        response_text = get_groq_response(request.message)
         return ChatResponse(response=response_text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating response: {str(e)}")
@@ -38,7 +38,7 @@ async def send_message(request: ChatRequest):
 @router.post("/stream")
 async def stream_message(request: ChatRequest):
     """
-    Send a message and stream the response from Gemini AI via SSE.
+    Send a message and stream the response from Groq AI via SSE.
 
     Args:
         request: ChatRequest containing the user's message.
@@ -51,7 +51,7 @@ async def stream_message(request: ChatRequest):
 
     def event_generator():
         try:
-            for event in stream_gemini_response(request.message):
+            for event in stream_groq_response(request.message):
                 data = json.dumps(event)
                 yield f"data: {data}\n\n"
             # Signal stream completion

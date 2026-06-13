@@ -1,31 +1,27 @@
 """
 Gemini AI Service Module
-Handles communication with Google's Gemini API using the modern google-genai SDK.
+Handles communication with Google's Gemini API using LangChain's google-genai integration.
 """
 
 from collections.abc import Generator
 
-from google import genai
-from google.genai import types
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.config import settings
 
-# Shared client instance
-_client: genai.Client | None = None
+# Shared model instance
+_model = None
 
 
-def _get_client() -> genai.Client:
-    """Get or create the Gemini API client."""
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    return _client
-
-
-# Shared config with Google Search enabled
-_CONFIG = types.GenerateContentConfig(
-    tools=[types.Tool(google_search=types.GoogleSearch())],
-)
+def _get_model():
+    """Get or create the LangChain Gemini model."""
+    global _model
+    if _model is None:
+        _model = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=settings.GEMINI_API_KEY,
+        )
+    return _model
 
 
 def get_gemini_response(message: str) -> str:
@@ -38,12 +34,8 @@ def get_gemini_response(message: str) -> str:
     Returns:
         The AI-generated response text.
     """
-    client = _get_client()
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=message,
-        config=_CONFIG,
-    )
+    model = _get_model()
+    response = model.invoke(message)
     return response.text
 
 
@@ -57,25 +49,13 @@ def stream_gemini_response(message: str) -> Generator[dict, None, None]:
     Yields:
         Dicts with either {"status": "..."} or {"content": "..."} keys.
     """
-    client = _get_client()
+    model = _get_model()
 
     yield {"status": "thinking"}
 
     first_chunk = True
-    search_detected = False
 
-    for chunk in client.models.generate_content_stream(
-        model="gemini-2.5-flash",
-        contents=message,
-        config=_CONFIG,
-    ):
-        # Detect web search grounding from candidates metadata
-        if not search_detected and chunk.candidates:
-            candidate = chunk.candidates[0]
-            if candidate.grounding_metadata and candidate.grounding_metadata.grounding_chunks:
-                search_detected = True
-                yield {"status": "web_searching"}
-
+    for chunk in model.stream(message):
         if chunk.text:
             if first_chunk:
                 yield {"status": "generating"}
