@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import type { ChatEntry, Story } from '../types/todo';
 import { streamMessage } from '../services/api';
 import type { StreamStatus } from '../services/api';
@@ -163,12 +164,18 @@ export function AgentPanel({ userId, threadId, onRefresh }: AgentPanelProps) {
                 <div className={`chat-bubble agent-bubble ${entry.loading && !entry.text ? 'loading' : ''}`}>
                   {entry.loading && !entry.text ? (
                     <div className="agent-typing">
-                      {streamStatus === 'thinking' && <span className="agent-status-text">Thinking…</span>}
-                      {streamStatus === 'web_searching' && <span className="agent-status-text">Searching the web…</span>}
-                      {(streamStatus === 'generating' || !streamStatus) && <><span /><span /><span /></>}
+                      <span /><span /><span />
+                      {streamStatus === 'thinking' && (
+                        <span className="agent-status-text">Thinking…</span>
+                      )}
+                      {streamStatus === 'web_searching' && (
+                        <span className="agent-status-text">Searching the web…</span>
+                      )}
                     </div>
                   ) : (
-                    <span>{entry.text}</span>
+                    <div className="agent-markdown">
+                      <ReactMarkdown>{entry.text}</ReactMarkdown>
+                    </div>
                   )}
                 </div>
               </div>
