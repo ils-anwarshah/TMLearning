@@ -29,7 +29,7 @@ async def send_message(request: ChatRequest):
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
     try:
-        response_text = get_groq_response(request.message)
+        response_text = await get_groq_response(request.message)
         return ChatResponse(response=response_text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating response: {str(e)}")
@@ -49,9 +49,9 @@ async def stream_message(request: ChatRequest):
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    def event_generator():
+    async def event_generator():
         try:
-            for event in stream_groq_response(request.message):
+            async for event in stream_groq_response(request.message):
                 data = json.dumps(event)
                 yield f"data: {data}\n\n"
             # Signal stream completion

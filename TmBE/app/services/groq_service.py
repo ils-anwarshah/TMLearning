@@ -1,27 +1,39 @@
 """
 Groq AI Service Module
-Handles communication with Groq's API using the official Groq SDK.
+Handles communication with Groq's API using LangChain's langchain-groq integration.
 """
 
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 
-from groq import Groq
+from langchain_groq import ChatGroq
 
 from app.config import settings
 
-# Shared client instance
-_client = None
+# Shared model instance
+_model = None
+
+SYSTEM_PROMPT = (
+    "You are a helpful AI assistant specialised in task and project management. "
+    "Help users create, organise, and track their stories and subtasks clearly and concisely."
+)
 
 
-def _get_client():
-    """Get or create the Groq client."""
-    global _client
-    if _client is None:
-        _client = Groq(api_key=settings.GROQ_API_KEY)
-    return _client
+def _get_model() -> ChatGroq:
+    """Get or create the LangChain ChatGroq model."""
+    global _model
+    if _model is None:
+        _model = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            api_key=settings.GROQ_API_KEY,
+            temperature=0.7,
+            max_tokens=None,
+            timeout=None,
+            max_retries=2,
+        )
+    return _model
 
 
-def get_groq_response(message: str) -> str:
+async def get_groq_response(message: str) -> str:
     """
     Send a message to Groq and return the generated response.
 
@@ -31,17 +43,16 @@ def get_groq_response(message: str) -> str:
     Returns:
         The AI-generated response text.
     """
-    client = _get_client()
-    chat_completion = client.chat.completions.create(
-        messages=[
-            {"role": "user", "content": message}
-        ],
-        model="llama-3.3-70b-versatile",
-    )
-    return chat_completion.choices[0].message.content
+    model = _get_model()
+    messages = [
+        ("system", SYSTEM_PROMPT),
+        ("human", message),
+    ]
+    response = await model.ainvoke(messages)
+    return response.content
 
 
-def stream_groq_response(message: str) -> Generator[dict, None, None]:
+async def stream_groq_response(message: str) -> AsyncGenerator[dict, None]:
     """
     Stream a response from Groq chunk by chunk, yielding status and content events.
 
@@ -51,24 +62,19 @@ def stream_groq_response(message: str) -> Generator[dict, None, None]:
     Yields:
         Dicts with either {"status": "..."} or {"content": "..."} keys.
     """
-    client = _get_client()
+    model = _get_model()
+    messages = [
+        ("system", SYSTEM_PROMPT),
+        ("human", message),
+    ]
 
     yield {"status": "thinking"}
 
-    stream = client.chat.completions.create(
-        messages=[
-            {"role": "user", "content": message}
-        ],
-        model="llama-3.3-70b-versatile",
-        stream=True,
-    )
-
     first_chunk = True
 
-    for chunk in stream:
-        content = chunk.choices[0].delta.content
-        if content:
+    async for chunk in model.astream(messages):
+        if chunk.content:
             if first_chunk:
                 yield {"status": "generating"}
                 first_chunk = False
-            yield {"content": content}
+            yield {"content": chunk.content}
